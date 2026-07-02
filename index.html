@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汉字编码定位</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --sk-body-background: #fff;
+            --sk-body-text: rgb(29, 29, 31);
+            --sk-body-subtext: rgb(110, 110, 115);
+            --sk-link: rgb(0, 102, 204);
+            --sk-card-bg: #f5f5f7;
+            --sk-card-border: rgba(0, 0, 0, 0.08);
+            --sk-code-bg: rgba(0, 0, 0, 0.05);
+            --sk-btn-bg: #f5f5f7;
+            --sk-btn-hover: #e8e8ed;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --sk-body-background: rgb(0, 0, 0);
+                --sk-body-text: rgb(245, 245, 247);
+                --sk-body-subtext: rgb(152, 152, 157);
+                --sk-link: rgb(41, 151, 255);
+                --sk-card-bg: rgb(28, 28, 30);
+                --sk-card-border: rgba(255, 255, 255, 0.12);
+                --sk-code-bg: rgba(255, 255, 255, 0.1);
+                --sk-btn-bg: rgb(44, 44, 46);
+                --sk-btn-hover: rgb(58, 58, 60);
+            }
+        }
+
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "SF Pro Display", "SF Pro Icons", "PingFang SC", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+            font-size: 17px;
+            line-height: 1.4;
+            color: var(--sk-body-text);
+            background: var(--sk-body-background);
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 32px 22px 48px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 4px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--sk-body-subtext);
+            margin: 0 0 24px;
+        }
+
+        .seg {
+            display: flex;
+            gap: 4px;
+            background: var(--sk-card-bg);
+            border: 1px solid var(--sk-card-border);
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 8px;
+        }
+
+        .seg-btn {
+            flex: 1;
+            background: transparent;
+            color: var(--sk-body-subtext);
+            border: none;
+            border-radius: 7px;
+            padding: 9px 12px;
+            font-size: 15px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .seg-btn.active {
+            background: var(--sk-body-background);
+            color: var(--sk-body-text);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .acc-hint {
+            font-size: 13px;
+            color: var(--sk-body-subtext);
+            margin-bottom: 16px;
+            padding: 0 2px;
+            line-height: 1.4;
+        }
+
+        button.primary {
+            display: block;
+            width: 100%;
+            background-color: var(--sk-link);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 17px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            margin-bottom: 20px;
+        }
+
+        button.primary:hover {
+            opacity: 0.9;
+        }
+
+        button.primary:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .status {
+            font-size: 14px;
+            color: var(--sk-body-subtext);
+            margin-bottom: 20px;
+            min-height: 20px;
+            text-align: center;
+        }
+
+        .status.error {
+            color: #ff453a;
+        }
+
+        .manual {
+            margin-bottom: 24px;
+        }
+
+        .manual-title {
+            font-size: 14px;
+            color: var(--sk-body-subtext);
+            margin-bottom: 8px;
+        }
+
+        .manual-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .manual-row input {
+            flex: 1;
+            background: var(--sk-input-bg, var(--sk-card-bg));
+            color: var(--sk-body-text);
+            border: 1px solid var(--sk-card-border);
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .manual-row input:focus {
+            border-color: var(--sk-link);
+        }
+
+        .manual-row button {
+            background: var(--sk-btn-bg);
+            color: var(--sk-body-text);
+            border: 1px solid var(--sk-card-border);
+            border-radius: 10px;
+            padding: 11px 20px;
+            font-size: 15px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.2s ease;
+        }
+
+        .manual-row button:hover {
+            background: var(--sk-btn-hover);
+        }
+
+        .manual-hint {
+            font-size: 12px;
+            color: var(--sk-body-subtext);
+            margin-top: 8px;
+            line-height: 1.7;
+        }
+
+        .manual-hint code {
+            background: var(--sk-code-bg);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-family: "SF Mono", ui-monospace, "Menlo", monospace;
+            font-size: 11px;
+        }
+
+        .card {
+            background: var(--sk-card-bg);
+            border: 1px solid var(--sk-card-border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .card .label {
+            font-size: 13px;
+            color: var(--sk-body-subtext);
+            margin-bottom: 6px;
+        }
+
+        .card .value {
+            font-size: 20px;
+            font-weight: 500;
+            font-family: "SF Mono", "SFMono-Regular", ui-monospace, "Menlo", monospace;
+            word-break: break-all;
+            cursor: pointer;
+            user-select: all;
+        }
+
+        .card .value.hanzi {
+            font-family: "PingFang SC", inherit;
+            letter-spacing: 4px;
+            font-size: 26px;
+        }
+
+        .card .value.placeholder {
+            color: var(--sk-body-subtext);
+            font-weight: 400;
+        }
+
+        #results {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #results.ready {
+            opacity: 1;
+        }
+
+        #links {
+            display: none;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        #links.ready {
+            display: flex;
+        }
+
+        .link-btn {
+            flex: 1 1 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            background: var(--sk-btn-bg);
+            color: var(--sk-body-text);
+            border: 1px solid var(--sk-card-border);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+
+        .link-btn:hover {
+            background: var(--sk-btn-hover);
+        }
+
+        .link-btn .arrow {
+            color: var(--sk-body-subtext);
+            margin-left: 4px;
+        }
+
+        .coord-tag {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 1px 8px;
+            border-radius: 6px;
+            font-family: "SF Mono", ui-monospace, "Menlo", monospace;
+            letter-spacing: 0.3px;
+        }
+
+        .coord-tag.conv {
+            background: rgba(0, 122, 255, 0.14);
+            color: var(--sk-link);
+        }
+
+        .coord-tag.raw {
+            background: rgba(142, 142, 147, 0.18);
+            color: var(--sk-body-subtext);
+        }
+
+        .coord-legend {
+            display: none;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--sk-body-subtext);
+        }
+
+        .coord-legend.ready {
+            display: flex;
+        }
+
+        .coord-legend span {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .coord-legend .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .coord-legend .dot.conv {
+            background: var(--sk-link);
+        }
+
+        .coord-legend .dot.raw {
+            background: var(--sk-body-subtext);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>汉字编码定位</h1>
+    <p class="subtitle">获取当前定位，并转换为多种编码形式</p>
+
+    <div class="seg" id="accSeg">
+        <button type="button" class="seg-btn active" data-acc="high" onclick="setAccuracy('high')">高精度 · GPS</button>
+        <button type="button" class="seg-btn" data-acc="normal" onclick="setAccuracy('normal')">普通精度 · 网络</button>
+    </div>
+    <div class="acc-hint" id="accHint"></div>
+
+    <button class="primary" id="locateBtn" onclick="locate()">获取当前定位</button>
+    <div class="status" id="status"></div>
+
+    <div class="manual">
+        <div class="manual-title">或手动输入任意格式</div>
+        <div class="manual-row">
+            <input type="text" id="manualInput" placeholder="十进制 / 度分秒 / Geohash / Plus Codes / 汉字"
+                onkeydown="if(event.key==='Enter')parseManual()">
+            <button type="button" onclick="pasteManual()">粘贴</button>
+            <button type="button" onclick="parseManual()">解析</button>
+        </div>
+        <div class="manual-hint">
+            例：<code>40.0239, 116.4836</code> · <code>40°1′26″N 116°29′1″E</code> ·
+            <code>wx4gdwhs</code> · <code>8PGR2FFM+HC</code> · <code>杂四布居</code>
+        </div>
+    </div>
+
+    <div id="results">
+        <div class="card">
+            <div class="label">汉字编码</div>
+            <div class="value hanzi placeholder" id="hanzi">—</div>
+        </div>
+        <div class="card">
+            <div class="label">Geohash</div>
+            <div class="value placeholder" id="geohash">—</div>
+        </div>
+        <div class="card">
+            <div class="label">Plus Codes</div>
+            <div class="value placeholder" id="pluscode">—</div>
+        </div>
+        <div class="card">
+            <div class="label">十进制经纬度</div>
+            <div class="value placeholder" id="decimal">—</div>
+        </div>
+        <div class="card">
+            <div class="label">度分秒（DMS）</div>
+            <div class="value placeholder" id="dms">—</div>
+        </div>
+    </div>
+
+    <div id="links">
+        <a class="link-btn" id="amapLink" target="_blank" rel="noopener">
+            <span class="map-name">高德地图<span class="arrow">↗</span></span>
+            <span class="coord-tag conv">GCJ-02</span>
+        </a>
+        <a class="link-btn" id="baiduLink" target="_blank" rel="noopener">
+            <span class="map-name">百度地图<span class="arrow">↗</span></span>
+            <span class="coord-tag conv">BD-09</span>
+        </a>
+        <a class="link-btn" id="appleLink" target="_blank" rel="noopener">
+            <span class="map-name">苹果地图<span class="arrow">↗</span></span>
+            <span class="coord-tag conv">GCJ-02</span>
+        </a>
+        <a class="link-btn" id="gmapLink" target="_blank" rel="noopener">
+            <span class="map-name">Google 地图<span class="arrow">↗</span></span>
+            <span class="coord-tag conv">GCJ-02</span>
+        </a>
+        <a class="link-btn" id="gmapWgsLink" target="_blank" rel="noopener">
+            <span class="map-name">Google 地图<span class="arrow">↗</span></span>
+            <span class="coord-tag raw">WGS-84</span>
+        </a>
+        <a class="link-btn" id="geohashLink" target="_blank" rel="noopener">
+            <span class="map-name">Geohash 地图<span class="arrow">↗</span></span>
+            <span class="coord-tag raw">WGS-84</span>
+        </a>
+        <a class="link-btn" id="earthLink" target="_blank" rel="noopener">
+            <span class="map-name">Google Earth<span class="arrow">↗</span></span>
+            <span class="coord-tag raw">WGS-84</span>
+        </a>
+    </div>
+    <div class="coord-legend" id="coordLegend">
+        <span><span class="dot conv"></span>已转坐标系（国内地图对齐）</span>
+        <span><span class="dot raw"></span>WGS-84 原始坐标（不转换）</span>
+    </div>
+
+    <script>
+        // ---------- 1024 字库（按字频排序，base = 1024 = 2^10，每字 10 bit） ----------
+        var HANZI = "的一不是了人在有我他这为之来大以个中上们到说国和地也子时道出而要于就下得可你年生自会那后能对着事其里所去行过家十用发天如然作方成者多日都三小军二无同么经法当起与好看学进种将还分此心前面又定见只主没公从知使部本动现因开些理长明样意已月正想实把但相两民她力文等外第王高问太头情西机它回并间手四关重应工性全门老点身东由何向至物战业被政内五儿及入先己安或利很最书制美山体什新话名曰合加世平水常果位信度产立声南代走女言马金处便通命特给数次海今表原斯义各州化口任真才几教官少司德解神则必兵气打员再论别听提万死更比受百做尔即元报直白总非建夫北未张令反士师许条变系计且认目光管路接城活保结题却指感难量务治取场思电空边统件期克帝亲复住请市六放风资求史色形望传八府眼领清决笑告叫队强往区交武达社权科九设李观记改展字故品议象花七完林基服带据界云觉像院飞远收石众车候类程转共千式失流每该朝始连术近格济干运怎步台让江河识规拉切极持若英争功深备造阳快集布尽周宗病华称罗爱导确呢办节根击商陈火兴京注虽杀父存臣准广首乎具甚黄满容单联调吃古算坐早引须离证约母组房曾似易随精视尚断乃影除青初息守党半县轻质语越况举皇钱历留乐章照器写团诸闻亦足余整价号级参示支红阿消图星落礼营增土际致志夜需皆左究汉念既送显置亚推居列君包技线弟客委终选龙势考右属酒农片希破谓喜费谈音查专止吗找食装绝答敌害密研刘依按久宝攻企案察黑突倒局投衣愿省欲率严待归医玉船奇护卫岁律标罪吧群春响仍某细承拿施急职另敢跟讲防独责较威苏双善校友围仅纪族谁惊底孩革维巴供斗降卷姐封构站验苦差刻益派紧料异例祖宫乱素怕男效般段福银晚宣户游香采修娘木态够划续境米假微试伤刚状兰诉助征胜竟项继爷疑印速齐低室退脸限热田值怀郎纳氏景执型欢毛免略批犯否灵药射监织陆句孙兄罢劳获旧网预忙贵错树追临伯育普诗副充永财适圣血弹拜雷妇哪源遂创胡习负策败宋御讨富尼范球秋冲恩哥寻恶停良股险波刺述谢环莫脑草忽侍静散判养积遣怪耳镇登遇恐唐堂诏著幸排简宁升检铁角顾村读挥矣冷模佛杨梦救阵哈暗买督楚配痛授肯雨占楼呼顺阴吾奏固皮警甲担妈坚阶忠背姓索穿吴凡吉激审剑层洲脚乡沙托奉沉亡康宜超谋演协湖姑赵付班招夏掌减伊妻鲁野释亮顿录丁移危税座优烈卡丽遗画屋您鱼慢露啊端徒坏杂渐藏压贼温卿帮松换侯抗午郡洋席艺禁赶牛申仙误钟块饭迎货补博智仁款毕延隐私谷附骑郑殿叶虎载航控刑荣央概庄岛脱介盖序秦庭词睡召怒枪跑虑靠味献曲笔雪份仪困庆旁互灭梁园评短川编探歌乘蒙鬼欧洛烟尊休朋典架犹";
+        var HANZI_BASE = HANZI.length; // 1024
+
+        // ---------- 十进制 -> 度分秒 ----------
+        function toDMS(decimal, isLat) {
+            var hemi = decimal >= 0 ? (isLat ? "N" : "E") : (isLat ? "S" : "W");
+            var abs = Math.abs(decimal);
+            var deg = Math.floor(abs);
+            var remainder = (abs - deg) * 60;
+            var min = Math.floor(remainder);
+            var sec = Math.round((remainder - min) * 60);
+            // 进位处理（秒四舍五入到 60 时）
+            if (sec === 60) { sec = 0; min += 1; }
+            if (min === 60) { min = 0; deg += 1; }
+            return deg + "°" + min + "′" + sec + "″ " + hemi;
+        }
+
+        // ---------- 十进制 -> geohash（标准 base32） ----------
+        var GEOHASH_BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+        function encodeGeohash(lat, lon, precision) {
+            var latRange = [-90.0, 90.0];
+            var lonRange = [-180.0, 180.0];
+            var isEven = true;
+            var bit = 0;
+            var idx = 0;
+            var geohash = "";
+            while (geohash.length < precision) {
+                if (isEven) {
+                    var mid = (lonRange[0] + lonRange[1]) / 2;
+                    if (lon >= mid) { idx = idx * 2 + 1; lonRange[0] = mid; }
+                    else { idx = idx * 2; lonRange[1] = mid; }
+                } else {
+                    var midLat = (latRange[0] + latRange[1]) / 2;
+                    if (lat >= midLat) { idx = idx * 2 + 1; latRange[0] = midLat; }
+                    else { idx = idx * 2; latRange[1] = midLat; }
+                }
+                isEven = !isEven;
+                if (bit < 4) {
+                    bit++;
+                } else {
+                    geohash += GEOHASH_BASE32[idx];
+                    bit = 0;
+                    idx = 0;
+                }
+            }
+            return geohash;
+        }
+
+        // ---------- 十进制 -> Plus Codes (Open Location Code, 8+2) ----------
+        var OLC_ALPHABET = "23456789CFGHJMPQRVWX";
+        var OLC_SEPARATOR = "+";
+        var OLC_SEPARATOR_POS = 8;
+        var OLC_PAIR_RESOLUTIONS = [20.0, 1.0, 0.05, 0.0025, 0.000125];
+        function clipLatitude(lat) { return Math.min(90, Math.max(-90, lat)); }
+        function normalizeLongitude(lon) {
+            while (lon < -180) lon += 360;
+            while (lon >= 180) lon -= 360;
+            return lon;
+        }
+        function encodePlusCode(lat, lon, codeLength) {
+            codeLength = codeLength || 10;
+            lat = clipLatitude(lat);
+            lon = normalizeLongitude(lon);
+            if (lat === 90) lat = lat - 0.000001; // 避免落到网格外
+            var adjLat = lat + 90;
+            var adjLon = lon + 180;
+            var code = "";
+            var digitCount = 0;
+            while (digitCount < codeLength) {
+                var placeValue = OLC_PAIR_RESOLUTIONS[Math.floor(digitCount / 2)];
+                // 纬度
+                var d = Math.floor(adjLat / placeValue);
+                adjLat -= d * placeValue;
+                code += OLC_ALPHABET[d];
+                digitCount++;
+                // 经度
+                d = Math.floor(adjLon / placeValue);
+                adjLon -= d * placeValue;
+                code += OLC_ALPHABET[d];
+                digitCount++;
+                if (digitCount === OLC_SEPARATOR_POS && digitCount < codeLength) {
+                    code += OLC_SEPARATOR;
+                }
+            }
+            if (code.length === OLC_SEPARATOR_POS) code += OLC_SEPARATOR;
+            return code;
+        }
+
+        // ---------- 十进制 -> 汉字编码（4 字 · 40 bit，思路同 hanzigeo.py） ----------
+        function bitsForChars(numChars) {
+            // base = 1024 = 2^10，每字 10 bit
+            var bitLen = HANZI_BASE.toString(2).length; // 11
+            var totalBits = numChars * bitLen;
+            while (Math.pow(2, totalBits) > Math.pow(HANZI_BASE, numChars)) {
+                totalBits -= 1;
+            }
+            return totalBits; // 40
+        }
+        function encodeHanzi(lat, lon, numChars) {
+            var totalBits = bitsForChars(numChars);
+            var bitsLon = Math.ceil(totalBits / 2); // 20
+            var bitsLat = Math.floor(totalBits / 2); // 20
+
+            var lonCode = Math.floor((lon + 180) / 360 * Math.pow(2, bitsLon));
+            lonCode = Math.min(Math.max(lonCode, 0), Math.pow(2, bitsLon) - 1);
+            var latCode = Math.floor((lat + 90) / 180 * Math.pow(2, bitsLat));
+            latCode = Math.min(Math.max(latCode, 0), Math.pow(2, bitsLat) - 1);
+
+            var lonBits = lonCode.toString(2).padStart(bitsLon, "0");
+            var latBits = latCode.toString(2).padStart(bitsLat, "0");
+            var bits = "";
+            for (var i = 0; i < Math.max(bitsLon, bitsLat); i++) {
+                if (i < bitsLon) bits += lonBits[i];
+                if (i < bitsLat) bits += latBits[i];
+            }
+            // 40 bit 在 Number 安全整数范围内（< 2^53），用 BigInt 更稳妥
+            var value = BigInt("0b" + bits);
+            var base = BigInt(HANZI_BASE);
+            var digits = [];
+            for (var j = 0; j < numChars; j++) {
+                var rem = value % base;
+                value = value / base;
+                digits.push(HANZI[Number(rem)]);
+            }
+            digits.reverse();
+            return digits.join("");
+        }
+
+        // ---------- 各编码 -> 十进制（解码，用于各自精度的高德跳转） ----------
+        function decodeGeohash(geohash) {
+            var isEven = true, lat = [-90, 90], lon = [-180, 180];
+            for (var i = 0; i < geohash.length; i++) {
+                var cd = GEOHASH_BASE32.indexOf(geohash[i]);
+                for (var b = 4; b >= 0; b--) {
+                    var bit = (cd >> b) & 1;
+                    if (isEven) {
+                        var mid = (lon[0] + lon[1]) / 2;
+                        if (bit) lon[0] = mid; else lon[1] = mid;
+                    } else {
+                        var midLat = (lat[0] + lat[1]) / 2;
+                        if (bit) lat[0] = midLat; else lat[1] = midLat;
+                    }
+                    isEven = !isEven;
+                }
+            }
+            return [(lat[0] + lat[1]) / 2, (lon[0] + lon[1]) / 2];
+        }
+
+        function decodePlusCode(code) {
+            code = code.replace(OLC_SEPARATOR, "").replace(/0+$/, "");
+            var lat = -90, lon = -180, n = 0;
+            while (n < code.length) {
+                var pv = OLC_PAIR_RESOLUTIONS[Math.floor(n / 2)];
+                lat += OLC_ALPHABET.indexOf(code[n]) * pv; n++;
+                if (n < code.length) { lon += OLC_ALPHABET.indexOf(code[n]) * pv; n++; }
+            }
+            var res = OLC_PAIR_RESOLUTIONS[Math.floor((code.length - 1) / 2)];
+            return [lat + res / 2, lon + res / 2];
+        }
+
+        function decodeHanzi(code) {
+            var totalBits = bitsForChars(code.length);
+            var bitsLon = Math.ceil(totalBits / 2);
+            var bitsLat = Math.floor(totalBits / 2);
+            var value = 0n, base = BigInt(HANZI_BASE);
+            for (var i = 0; i < code.length; i++) {
+                value = value * base + BigInt(HANZI.indexOf(code[i]));
+            }
+            var bits = value.toString(2).padStart(totalBits, "0");
+            var lonBits = "", latBits = "", pos = 0;
+            for (var j = 0; j < Math.max(bitsLon, bitsLat); j++) {
+                if (j < bitsLon) lonBits += bits[pos++];
+                if (j < bitsLat) latBits += bits[pos++];
+            }
+            var lonCode = parseInt(lonBits, 2), latCode = parseInt(latBits, 2);
+            var lon = (lonCode + 0.5) / Math.pow(2, bitsLon) * 360 - 180;
+            var lat = (latCode + 0.5) / Math.pow(2, bitsLat) * 180 - 90;
+            return [lat, lon];
+        }
+
+        // ---------- WGS-84 -> GCJ-02（高德/火星坐标） ----------
+        function outOfChina(lat, lon) {
+            return !(lon >= 72.004 && lon <= 137.8347 && lat >= 0.8293 && lat <= 55.8271);
+        }
+        function _tLat(x, y) {
+            var r = -100 + 2 * x + 3 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+            r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+            r += (20 * Math.sin(y * Math.PI) + 40 * Math.sin(y / 3 * Math.PI)) * 2 / 3;
+            r += (160 * Math.sin(y / 12 * Math.PI) + 320 * Math.sin(y * Math.PI / 30)) * 2 / 3;
+            return r;
+        }
+        function _tLon(x, y) {
+            var r = 300 + x + 2 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+            r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+            r += (20 * Math.sin(x * Math.PI) + 40 * Math.sin(x / 3 * Math.PI)) * 2 / 3;
+            r += (150 * Math.sin(x / 12 * Math.PI) + 300 * Math.sin(x / 30 * Math.PI)) * 2 / 3;
+            return r;
+        }
+        function wgs84ToGcj02(lat, lon) {
+            if (outOfChina(lat, lon)) return [lat, lon];
+            var a = 6378245.0, ee = 0.00669342162296594323;
+            var dLat = _tLat(lon - 105, lat - 35);
+            var dLon = _tLon(lon - 105, lat - 35);
+            var radLat = lat / 180 * Math.PI;
+            var magic = Math.sin(radLat);
+            magic = 1 - ee * magic * magic;
+            var sqrtMagic = Math.sqrt(magic);
+            dLat = (dLat * 180) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+            dLon = (dLon * 180) / (a / sqrtMagic * Math.cos(radLat) * Math.PI);
+            return [lat + dLat, lon + dLon];
+        }
+
+        // GCJ-02 -> BD-09（百度坐标）
+        function gcj02ToBd09(lat, lon) {
+            var xPi = Math.PI * 3000 / 180;
+            var z = Math.sqrt(lon * lon + lat * lat) + 0.00002 * Math.sin(lat * xPi);
+            var theta = Math.atan2(lat, lon) + 0.000003 * Math.cos(lon * xPi);
+            return [z * Math.sin(theta) + 0.006, z * Math.cos(theta) + 0.0065];
+        }
+
+        // ---------- 平台检测 ----------
+        function isIOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+        function isAndroid() { return /Android/i.test(navigator.userAgent); }
+        function isMobile() { return isIOS() || isAndroid(); }
+
+        // ---------- 各地图跳转链接（手机唤端 App，桌面开网页版） ----------
+        function amapHref(lat, lon, name) {
+            // dev=0 表示传入的是高德(GCJ-02)坐标
+            var g = wgs84ToGcj02(lat, lon);
+            var lt = g[0].toFixed(6), ln = g[1].toFixed(6), nm = encodeURIComponent(name);
+            if (isIOS())
+                return "iosamap://viewMap?sourceApplication=geohanzi&poiname=" + nm + "&lat=" + lt + "&lon=" + ln + "&dev=0";
+            if (isAndroid())
+                return "androidamap://viewMap?sourceApplication=geohanzi&poiname=" + nm + "&lat=" + lt + "&lon=" + ln + "&dev=0";
+            return "https://uri.amap.com/marker?position=" + ln + "," + lt + "&name=" + nm + "&coordinate=gaode&src=geohanzi";
+        }
+        function baiduHref(lat, lon, name) {
+            var g = wgs84ToGcj02(lat, lon);
+            var b = gcj02ToBd09(g[0], g[1]); // WGS-84 -> GCJ-02 -> BD-09
+            var lt = b[0].toFixed(6), ln = b[1].toFixed(6), nm = encodeURIComponent(name);
+            if (isMobile())
+                return "baidumap://map/marker?location=" + lt + "," + ln + "&title=" + nm + "&content=" + nm + "&coord_type=bd09ll&src=geohanzi";
+            return "https://api.map.baidu.com/marker?location=" + lt + "," + ln + "&title=" + nm + "&content=" + nm + "&output=html&coord_type=bd09ll&src=geohanzi";
+        }
+        function appleHref(lat, lon, name) {
+            // 中国区苹果地图底图为 GCJ-02，需传 GCJ-02 坐标才能对齐（国外时原样返回）
+            var g = wgs84ToGcj02(lat, lon);
+            return "https://maps.apple.com/?ll=" + g[0].toFixed(6) + "," + g[1].toFixed(6) +
+                "&q=" + encodeURIComponent(name);
+        }
+        function gmapHref(lat, lon) {
+            // GCJ-02：对齐国内路网图 / 手机端（国外时原样返回）
+            var g = wgs84ToGcj02(lat, lon);
+            return "https://www.google.com/maps/search/?api=1&query=" +
+                g[0].toFixed(6) + "," + g[1].toFixed(6);
+        }
+        function gmapHrefWgs(lat, lon) {
+            // WGS-84 原始坐标：对齐卫星影像 / 电脑网页版
+            return "https://www.google.com/maps/search/?api=1&query=" +
+                lat.toFixed(6) + "," + lon.toFixed(6);
+        }
+
+        // ---------- 输入解析：十进制 / 度分秒 ----------
+        function parseDecimal(str) {
+            var m = str.match(/^\s*(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)\s*$/);
+            if (!m) return null;
+            return [parseFloat(m[1]), parseFloat(m[2])];
+        }
+
+        function parseDMS(str) {
+            // 每段需带方向字母 N/S/E/W，度分秒可缺省分、秒
+            var re = /(-?\d+(?:\.\d+)?)[°\s]+(?:(\d+(?:\.\d+)?)[′'\s]+)?(?:(\d+(?:\.\d+)?)[″"\s]*)?([NSEWnsew])/g;
+            var lat = null, lon = null, m;
+            while ((m = re.exec(str)) !== null) {
+                var d = parseFloat(m[1]);
+                var min = m[2] ? parseFloat(m[2]) : 0;
+                var sec = m[3] ? parseFloat(m[3]) : 0;
+                var dir = m[4].toUpperCase();
+                var val = Math.abs(d) + min / 60 + sec / 3600;
+                if (dir === "S" || dir === "W") val = -val;
+                if (dir === "N" || dir === "S") lat = val; else lon = val;
+            }
+            if (lat !== null && lon !== null) return [lat, lon];
+            return null;
+        }
+
+        // ---------- 自动识别输入格式，返回 {fmt, coord:[lat,lon]} ----------
+        function parseAnyFormat(raw) {
+            var s = raw.trim();
+            if (!s) return null;
+
+            // 1) 汉字：全部字符都在字库内
+            var allHanzi = true;
+            for (var i = 0; i < s.length; i++) {
+                if (HANZI.indexOf(s[i]) < 0) { allHanzi = false; break; }
+            }
+            if (allHanzi) {
+                try { return { fmt: "汉字编码", coord: decodeHanzi(s) }; } catch (e) { }
+            }
+
+            // 2) Plus Codes：含 '+' 且字符属于 OLC 字母表
+            if (s.indexOf("+") >= 0) {
+                var up = s.toUpperCase().replace(/\s/g, "");
+                if (/^[23456789CFGHJMPQRVWX]+\+[23456789CFGHJMPQRVWX]*$/.test(up)) {
+                    try { return { fmt: "Plus Codes", coord: decodePlusCode(up) }; } catch (e) { }
+                }
+            }
+
+            // 3) 度分秒：含 °′″ 或方向字母
+            if (/[°′″]/.test(s) || /[NSEWnsew]/.test(s)) {
+                var dms = parseDMS(s);
+                if (dms) return { fmt: "度分秒", coord: dms };
+            }
+
+            // 4) 十进制：两个数字
+            var dec = parseDecimal(s);
+            if (dec) return { fmt: "十进制", coord: dec };
+
+            // 5) Geohash：仅含 base32 字符（无 a/i/l/o）
+            if (/^[0-9bcdefghjkmnpqrstuvwxyz]+$/i.test(s)) {
+                try { return { fmt: "Geohash", coord: decodeGeohash(s.toLowerCase()) }; } catch (e) { }
+            }
+
+            return null;
+        }
+
+        function pasteManual() {
+            var input = document.getElementById("manualInput");
+            if (!navigator.clipboard || !navigator.clipboard.readText) {
+                setStatus("当前浏览器不支持读取剪贴板，请手动粘贴", true);
+                input.focus();
+                return;
+            }
+            navigator.clipboard.readText().then(function (text) {
+                input.value = text.trim();
+                parseManual();
+            }).catch(function () {
+                setStatus("无法读取剪贴板，请手动粘贴后点「解析」", true);
+                input.focus();
+            });
+        }
+
+        function parseManual() {
+            var raw = document.getElementById("manualInput").value;
+            if (!raw || !raw.trim()) {
+                setStatus("请输入坐标或编码", true);
+                return;
+            }
+            var r = parseAnyFormat(raw);
+            if (!r) {
+                setStatus("无法识别的格式，请检查输入", true);
+                return;
+            }
+            var lat = r.coord[0], lon = r.coord[1];
+            if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                setStatus("坐标超出有效范围", true);
+                return;
+            }
+            render(lat, lon);
+            setStatus("已识别为「" + r.fmt + "」并换算为全部格式");
+        }
+
+        // ---------- UI ----------
+        function setStatus(msg, isError) {
+            var el = document.getElementById("status");
+            el.textContent = msg || "";
+            el.className = "status" + (isError ? " error" : "");
+        }
+
+        function setValue(id, text, isHanzi) {
+            var el = document.getElementById(id);
+            el.textContent = text;
+            el.classList.remove("placeholder");
+        }
+
+        function render(lat, lon) {
+            var geohash = encodeGeohash(lat, lon, 8);
+            var pluscode = encodePlusCode(lat, lon, 10);
+            var hanzi = encodeHanzi(lat, lon, 4);
+            setValue("decimal", lat.toFixed(4) + ", " + lon.toFixed(4));
+            setValue("dms", toDMS(lat, true) + "  " + toDMS(lon, false));
+            setValue("geohash", geohash);
+            setValue("pluscode", pluscode);
+            setValue("hanzi", hanzi);
+            document.getElementById("results").classList.add("ready");
+
+            // 底部跳转链接（都指向同一坐标；各地图坐标系不同，分别转换）
+            document.getElementById("amapLink").href = amapHref(lat, lon, "定位点");
+            document.getElementById("baiduLink").href = baiduHref(lat, lon, "定位点");
+            document.getElementById("appleLink").href = appleHref(lat, lon, "定位点");
+            document.getElementById("gmapLink").href = gmapHref(lat, lon);
+            document.getElementById("gmapWgsLink").href = gmapHrefWgs(lat, lon);
+            document.getElementById("geohashLink").href =
+                "https://geohash.softeng.co/" + geohash;
+            document.getElementById("earthLink").href =
+                "https://earth.google.com/web/search/" + lat + "," + lon;
+            document.getElementById("links").classList.add("ready");
+            document.getElementById("coordLegend").classList.add("ready");
+        }
+
+        // ---------- 精度模式选择 ----------
+        var accuracyMode = "high"; // "high" | "normal"
+        var ACC_INFO = {
+            high: {
+                name: "高精度",
+                hint: "当前：<b>高精度定位</b>（GPS/卫星）— 更精准，但室内较慢、更耗电",
+                options: { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+                retry: { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }
+            },
+            normal: {
+                name: "普通精度",
+                hint: "当前：<b>普通精度定位</b>（Wi-Fi/基站）— 更快省电，精度较低",
+                options: { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 },
+                retry: { enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 }
+            }
+        };
+
+        function setAccuracy(mode) {
+            accuracyMode = mode;
+            var btns = document.querySelectorAll(".seg-btn");
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.toggle("active", btns[i].getAttribute("data-acc") === mode);
+            }
+            document.getElementById("accHint").innerHTML = ACC_INFO[mode].hint;
+        }
+
+        function locate() {
+            var btn = document.getElementById("locateBtn");
+            if (!navigator.geolocation) {
+                setStatus("此设备/浏览器不支持定位", true);
+                return;
+            }
+            var mode = accuracyMode;
+            var info = ACC_INFO[mode];
+            btn.disabled = true;
+
+            function onSuccess(pos) {
+                var lat = pos.coords.latitude;
+                var lon = pos.coords.longitude;
+                var acc = pos.coords.accuracy;
+                render(lat, lon);
+                setStatus("定位成功 · " + info.name + "模式" +
+                    (acc ? "（实测精度约 ±" + Math.round(acc) + " 米）" : ""));
+                btn.disabled = false;
+                btn.textContent = "重新获取定位";
+            }
+
+            // kCLErrorLocationUnknown（code 2）多为临时失败：在同一精度模式下重试一次
+            function onError(isRetry) {
+                return function (err) {
+                    if (err.code === 1) {
+                        setStatus("定位被拒绝，请在 设置 → Safari → 位置 允许访问", true);
+                        btn.disabled = false;
+                        return;
+                    }
+                    if (!isRetry) {
+                        setStatus(info.name + "定位重试中…");
+                        navigator.geolocation.getCurrentPosition(onSuccess, onError(true), info.retry);
+                        return;
+                    }
+                    setStatus("定位失败，请稍后重试", true);
+                    btn.disabled = false;
+                    btn.textContent = "重试";
+                };
+            }
+
+            setStatus("正在以" + info.name + "模式获取定位…");
+            navigator.geolocation.getCurrentPosition(onSuccess, onError(false), info.options);
+        }
+
+        // 点击复制
+        document.getElementById("results").addEventListener("click", function (e) {
+            var el = e.target.closest(".value");
+            if (!el || el.classList.contains("placeholder")) return;
+            var text = el.textContent;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function () {
+                    var old = setStatus;
+                    setStatus("已复制：" + text);
+                });
+            }
+        });
+
+        // 初始化精度提示（默认高精度）
+        setAccuracy("high");
+    </script>
+</body>
+
+</html>

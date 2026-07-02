@@ -62,23 +62,23 @@
             margin: 0 0 24px;
         }
 
-        .seg {
+        .tabs {
             display: flex;
             gap: 4px;
             background: var(--sk-card-bg);
             border: 1px solid var(--sk-card-border);
             border-radius: 10px;
             padding: 4px;
-            margin-bottom: 8px;
+            margin-bottom: 16px;
         }
 
-        .seg-btn {
+        .tab {
             flex: 1;
             background: transparent;
             color: var(--sk-body-subtext);
             border: none;
             border-radius: 7px;
-            padding: 9px 12px;
+            padding: 9px 8px;
             font-size: 15px;
             font-weight: 500;
             font-family: inherit;
@@ -86,10 +86,14 @@
             transition: background-color 0.2s ease, color 0.2s ease;
         }
 
-        .seg-btn.active {
+        .tab.active {
             background: var(--sk-body-background);
             color: var(--sk-body-text);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .tab-panel.hidden {
+            display: none;
         }
 
         .acc-hint {
@@ -135,16 +139,6 @@
 
         .status.error {
             color: #ff453a;
-        }
-
-        .manual {
-            margin-bottom: 24px;
-        }
-
-        .manual-title {
-            font-size: 14px;
-            color: var(--sk-body-subtext);
-            margin-bottom: 8px;
         }
 
         .manual-row {
@@ -196,10 +190,18 @@
 
         .manual-hint code {
             background: var(--sk-code-bg);
-            padding: 1px 5px;
+            padding: 2px 6px;
             border-radius: 4px;
             font-family: "SF Mono", ui-monospace, "Menlo", monospace;
             font-size: 11px;
+            color: var(--sk-link);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s ease;
+        }
+
+        .manual-hint code:hover {
+            background: var(--sk-btn-hover);
         }
 
         .card {
@@ -340,17 +342,23 @@
     <h1>汉字编码定位</h1>
     <p class="subtitle">获取当前定位，并转换为多种编码形式</p>
 
-    <div class="seg" id="accSeg">
-        <button type="button" class="seg-btn active" data-acc="high" onclick="setAccuracy('high')">高精度 · GPS</button>
-        <button type="button" class="seg-btn" data-acc="normal" onclick="setAccuracy('normal')">普通精度 · 网络</button>
+    <div class="tabs">
+        <button type="button" class="tab active" data-tab="high" onclick="switchTab('high')">高精度定位</button>
+        <button type="button" class="tab" data-tab="normal" onclick="switchTab('normal')">普通精度定位</button>
+        <button type="button" class="tab" data-tab="manual" onclick="switchTab('manual')">手动输入</button>
     </div>
-    <div class="acc-hint" id="accHint"></div>
 
-    <button class="primary" id="locateBtn" onclick="locate()">获取当前定位</button>
-    <div class="status" id="status"></div>
+    <div class="tab-panel" id="panel-high">
+        <div class="acc-hint">高精度定位（GPS/卫星）— 更精准，但室内较慢、更耗电</div>
+        <button class="primary" id="locateBtn-high" onclick="locate('high')">获取高精度定位</button>
+    </div>
 
-    <div class="manual">
-        <div class="manual-title">或手动输入任意格式</div>
+    <div class="tab-panel hidden" id="panel-normal">
+        <div class="acc-hint">普通精度定位（Wi-Fi/基站）— 更快省电，精度较低</div>
+        <button class="primary" id="locateBtn-normal" onclick="locate('normal')">获取普通精度定位</button>
+    </div>
+
+    <div class="tab-panel hidden" id="panel-manual">
         <div class="manual-row">
             <input type="text" id="manualInput" placeholder="十进制 / 度分秒 / Geohash / Plus Codes / 汉字"
                 onkeydown="if(event.key==='Enter')parseManual()">
@@ -358,10 +366,15 @@
             <button type="button" onclick="parseManual()">解析</button>
         </div>
         <div class="manual-hint">
-            例：<code>40.0239, 116.4836</code> · <code>40°1′26″N 116°29′1″E</code> ·
-            <code>wx4gdwhs</code> · <code>8PGR2FFM+HC</code> · <code>杂四布居</code>
+            示例（点击填入）：<code onclick="useExample(this)">40.0239, 116.4836</code> ·
+            <code onclick="useExample(this)">40°1′26″N 116°29′1″E</code> ·
+            <code onclick="useExample(this)">wx4gdwhs</code> ·
+            <code onclick="useExample(this)">8PGR2FFM+HC</code> ·
+            <code onclick="useExample(this)">杂四布居</code>
         </div>
     </div>
+
+    <div class="status" id="status"></div>
 
     <div id="results">
         <div class="card">
@@ -749,6 +762,11 @@
             return null;
         }
 
+        function useExample(el) {
+            document.getElementById("manualInput").value = el.textContent.trim();
+            parseManual();
+        }
+
         function pasteManual() {
             var input = document.getElementById("manualInput");
             if (!navigator.clipboard || !navigator.clipboard.readText) {
@@ -771,6 +789,7 @@
                 setStatus("请输入坐标或编码", true);
                 return;
             }
+            clearResults();
             var r = parseAnyFormat(raw);
             if (!r) {
                 setStatus("无法识别的格式，请检查输入", true);
@@ -798,6 +817,19 @@
             el.classList.remove("placeholder");
         }
 
+        // 清空下方所有结果与跳转链接
+        function clearResults() {
+            var ids = ["hanzi", "geohash", "pluscode", "decimal", "dms"];
+            for (var i = 0; i < ids.length; i++) {
+                var el = document.getElementById(ids[i]);
+                el.textContent = "—";
+                el.classList.add("placeholder");
+            }
+            document.getElementById("results").classList.remove("ready");
+            document.getElementById("links").classList.remove("ready");
+            document.getElementById("coordLegend").classList.remove("ready");
+        }
+
         function render(lat, lon) {
             var geohash = encodeGeohash(lat, lon, 8);
             var pluscode = encodePlusCode(lat, lon, 10);
@@ -823,40 +855,40 @@
             document.getElementById("coordLegend").classList.add("ready");
         }
 
-        // ---------- 精度模式选择 ----------
-        var accuracyMode = "high"; // "high" | "normal"
+        // ---------- Tab 切换 ----------
+        function switchTab(tab) {
+            var tabs = document.querySelectorAll(".tab");
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].classList.toggle("active", tabs[i].getAttribute("data-tab") === tab);
+            }
+            var panels = ["high", "normal", "manual"];
+            for (var j = 0; j < panels.length; j++) {
+                document.getElementById("panel-" + panels[j]).classList.toggle("hidden", panels[j] !== tab);
+            }
+        }
+
+        // ---------- 定位（按精度模式） ----------
         var ACC_INFO = {
             high: {
                 name: "高精度",
-                hint: "当前：<b>高精度定位</b>（GPS/卫星）— 更精准，但室内较慢、更耗电",
                 options: { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
                 retry: { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }
             },
             normal: {
                 name: "普通精度",
-                hint: "当前：<b>普通精度定位</b>（Wi-Fi/基站）— 更快省电，精度较低",
                 options: { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 },
                 retry: { enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 }
             }
         };
 
-        function setAccuracy(mode) {
-            accuracyMode = mode;
-            var btns = document.querySelectorAll(".seg-btn");
-            for (var i = 0; i < btns.length; i++) {
-                btns[i].classList.toggle("active", btns[i].getAttribute("data-acc") === mode);
-            }
-            document.getElementById("accHint").innerHTML = ACC_INFO[mode].hint;
-        }
-
-        function locate() {
-            var btn = document.getElementById("locateBtn");
+        function locate(mode) {
+            var btn = document.getElementById("locateBtn-" + mode);
             if (!navigator.geolocation) {
                 setStatus("此设备/浏览器不支持定位", true);
                 return;
             }
-            var mode = accuracyMode;
             var info = ACC_INFO[mode];
+            clearResults();
             btn.disabled = true;
 
             function onSuccess(pos) {
@@ -905,9 +937,6 @@
                 });
             }
         });
-
-        // 初始化精度提示（默认高精度）
-        setAccuracy("high");
     </script>
 </body>
 

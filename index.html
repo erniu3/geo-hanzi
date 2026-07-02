@@ -724,27 +724,47 @@
         // 微信内置浏览器会拦截 App 私有 scheme（iosamap:// / baidumap://），只能走 https 网页版
         function isWeChat() { return /MicroMessenger/i.test(navigator.userAgent); }
 
+        // 安卓 intent:// URL，未装 App 时自动跳 fallback 网页版（不会白屏）
+        function androidIntent(query, scheme, pkg, fallback) {
+            return "intent://" + query + "#Intent;scheme=" + scheme + ";package=" + pkg +
+                ";S.browser_fallback_url=" + encodeURIComponent(fallback) + ";end";
+        }
+
+        // ---------- 各地图网页版链接（兜底用） ----------
+        function amapWeb(lat, lon, name) {
+            var g = wgs84ToGcj02(lat, lon);
+            return "https://uri.amap.com/marker?position=" + g[1].toFixed(6) + "," + g[0].toFixed(6) +
+                "&name=" + encodeURIComponent(name) + "&coordinate=gaode&src=geohanzi";
+        }
+        function baiduWeb(lat, lon, name) {
+            var g = wgs84ToGcj02(lat, lon);
+            var b = gcj02ToBd09(g[0], g[1]);
+            return "https://api.map.baidu.com/marker?location=" + b[0].toFixed(6) + "," + b[1].toFixed(6) +
+                "&title=" + encodeURIComponent(name) + "&content=" + encodeURIComponent(name) +
+                "&output=html&coord_type=bd09ll&src=geohanzi";
+        }
+
         // ---------- 各地图跳转链接（手机唤端 App，桌面/微信开网页版） ----------
         function amapHref(lat, lon, name) {
             // dev=0 表示传入的是高德(GCJ-02)坐标
             var g = wgs84ToGcj02(lat, lon);
             var lt = g[0].toFixed(6), ln = g[1].toFixed(6), nm = encodeURIComponent(name);
-            var web = "https://uri.amap.com/marker?position=" + ln + "," + lt + "&name=" + nm + "&coordinate=gaode&src=geohanzi";
+            var web = amapWeb(lat, lon, name);
+            var q = "viewMap?sourceApplication=geohanzi&poiname=" + nm + "&lat=" + lt + "&lon=" + ln + "&dev=0";
             if (isWeChat()) return web; // 微信内 scheme 被拦，回退网页版
-            if (isIOS())
-                return "iosamap://viewMap?sourceApplication=geohanzi&poiname=" + nm + "&lat=" + lt + "&lon=" + ln + "&dev=0";
-            if (isAndroid())
-                return "androidamap://viewMap?sourceApplication=geohanzi&poiname=" + nm + "&lat=" + lt + "&lon=" + ln + "&dev=0";
+            if (isIOS()) return "iosamap://" + q;
+            if (isAndroid()) return androidIntent(q, "androidamap", "com.autonavi.minimap", web);
             return web;
         }
         function baiduHref(lat, lon, name) {
             var g = wgs84ToGcj02(lat, lon);
             var b = gcj02ToBd09(g[0], g[1]); // WGS-84 -> GCJ-02 -> BD-09
             var lt = b[0].toFixed(6), ln = b[1].toFixed(6), nm = encodeURIComponent(name);
-            var web = "https://api.map.baidu.com/marker?location=" + lt + "," + ln + "&title=" + nm + "&content=" + nm + "&output=html&coord_type=bd09ll&src=geohanzi";
+            var web = baiduWeb(lat, lon, name);
+            var q = "map/marker?location=" + lt + "," + ln + "&title=" + nm + "&content=" + nm + "&coord_type=bd09ll&src=geohanzi";
             if (isWeChat()) return web; // 微信内 scheme 被拦，回退网页版
-            if (isMobile())
-                return "baidumap://map/marker?location=" + lt + "," + ln + "&title=" + nm + "&content=" + nm + "&coord_type=bd09ll&src=geohanzi";
+            if (isIOS()) return "baidumap://" + q;
+            if (isAndroid()) return androidIntent(q, "baidumap", "com.baidu.BaiduMap", web);
             return web;
         }
         function appleHref(lat, lon, name) {

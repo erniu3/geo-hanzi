@@ -141,6 +141,36 @@
             color: #ff453a;
         }
 
+        #toast {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            padding: 16px 32px;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1000;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            #toast {
+                background: rgba(255, 255, 255, 0.92);
+                color: rgb(0, 0, 0);
+            }
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
         .manual-row {
             display: flex;
             gap: 8px;
@@ -375,6 +405,8 @@
     </div>
 
     <div class="status" id="status"></div>
+
+    <div id="toast"></div>
 
     <div id="results">
         <div class="card">
@@ -925,6 +957,16 @@
             navigator.geolocation.getCurrentPosition(onSuccess, onError(false), info.options);
         }
 
+        // 提示 toast（居中弹出，醒目）
+        var _toastTimer = null;
+        function showToast(msg) {
+            var t = document.getElementById("toast");
+            t.textContent = msg;
+            t.classList.add("show");
+            if (_toastTimer) clearTimeout(_toastTimer);
+            _toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1400);
+        }
+
         // 点击复制
         document.getElementById("results").addEventListener("click", function (e) {
             var el = e.target.closest(".value");
@@ -932,8 +974,7 @@
             var text = el.textContent;
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text).then(function () {
-                    var old = setStatus;
-                    setStatus("已复制：" + text);
+                    showToast("✓ 已复制");
                 });
             }
         });

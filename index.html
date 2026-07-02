@@ -17,6 +17,7 @@
             --sk-code-bg: rgba(0, 0, 0, 0.05);
             --sk-btn-bg: #f5f5f7;
             --sk-btn-hover: #e8e8ed;
+            --sk-toast-bg: #ffffff;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -30,6 +31,7 @@
                 --sk-code-bg: rgba(255, 255, 255, 0.1);
                 --sk-btn-bg: rgb(44, 44, 46);
                 --sk-btn-hover: rgb(58, 58, 60);
+                --sk-toast-bg: rgb(44, 44, 46);
             }
         }
 
@@ -144,31 +146,58 @@
         #toast {
             position: fixed;
             left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(0.9);
-            background: rgba(0, 0, 0, 0.85);
-            color: #fff;
-            font-size: 20px;
-            font-weight: 600;
-            padding: 16px 32px;
+            bottom: 40px;
+            transform: translateX(-50%) translateY(16px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: min(420px, calc(100vw - 40px));
+            background: var(--sk-toast-bg);
+            border: 1px solid var(--sk-card-border);
             border-radius: 14px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            padding: 12px 18px 12px 14px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
             opacity: 0;
             pointer-events: none;
             z-index: 1000;
-            transition: opacity 0.18s ease, transform 0.18s ease;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            #toast {
-                background: rgba(255, 255, 255, 0.92);
-                color: rgb(0, 0, 0);
-            }
+            transition: opacity 0.22s ease, transform 0.22s ease;
         }
 
         #toast.show {
             opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #toast .toast-icon {
+            flex: 0 0 auto;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #34c759;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        #toast .toast-body {
+            min-width: 0;
+        }
+
+        #toast .toast-title {
+            font-size: 12px;
+            color: var(--sk-body-subtext);
+            margin-bottom: 2px;
+        }
+
+        #toast .toast-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--sk-body-text);
+            word-break: break-all;
+            line-height: 1.3;
         }
 
         .manual-row {
@@ -963,24 +992,29 @@
             navigator.geolocation.getCurrentPosition(onSuccess, onError(false), info.options);
         }
 
-        // 提示 toast（居中弹出，醒目）
+        // 复制成功提示 toast（底部弹出，显示复制了什么）
         var _toastTimer = null;
-        function showToast(msg) {
+        function showToast(label, value) {
             var t = document.getElementById("toast");
-            t.textContent = msg;
+            t.innerHTML = '<span class="toast-icon">✓</span>' +
+                '<div class="toast-body"><div class="toast-title"></div><div class="toast-value"></div></div>';
+            t.querySelector(".toast-title").textContent = "已复制 · " + label;
+            t.querySelector(".toast-value").textContent = value;
             t.classList.add("show");
             if (_toastTimer) clearTimeout(_toastTimer);
-            _toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1400);
+            _toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2000);
         }
 
         // 点击复制
         document.getElementById("results").addEventListener("click", function (e) {
             var el = e.target.closest(".value");
             if (!el || el.classList.contains("placeholder")) return;
-            var text = el.textContent;
+            var text = el.textContent.trim();
+            var card = el.closest(".card");
+            var label = card ? card.querySelector(".label").textContent.trim() : "坐标";
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text).then(function () {
-                    showToast("✓ 已复制");
+                    showToast(label, text);
                 });
             }
         });

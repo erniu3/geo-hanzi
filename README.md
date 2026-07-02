@@ -1,4 +1,4 @@
-# geo-hanzi 汉字编码定位
+# 二牛汉字定位编码
 
 一个纯前端（单文件 `index.html`）的 GPS 定位与坐标编码互转工具，主要面向 iOS Safari，桌面浏览器同样可用。
 
@@ -22,6 +22,10 @@
 
 - 字库 `hanzi_freq_1024.txt`：按字频排序的 1024 个常用汉字（去重）。
 - 每字承载 log₂(1024) = 10 bit，4 字 = 40 bit，与 8 位 Geohash 的熵完全相等，定位精度相当（约百米级）。
+
+### 汉字字库来源
+
+字频数据取自 [Chinese Character Frequency List（MTSU）](http://lingua.mtsu.edu/chinese-computing/statistics/char/list.php?Which=TO)，从中取字频最高的前 1024 个字作为字库。
 
 ## 坐标系与地图跳转
 

@@ -44,7 +44,3 @@
 直接用浏览器打开 `index.html` 即可，无需构建。
 
 > **注意**：iOS Safari 的定位 API 要求页面通过 **HTTPS 或 localhost** 访问。用 `file://` 或局域网 `http://` 打开会拿不到定位。部署到任意 HTTPS 静态托管即可正常使用。
-
-## 参考
-
-汉字编码算法参考自 `geohash-demo` 项目中的 `hanzigeo.py`。

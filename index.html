@@ -362,7 +362,7 @@
             <code onclick="useExample(this)">wx4gdwhs</code> ·
             <code onclick="useExample(this)">8PGR2FFM+HC</code> ·
             <code onclick="useExample(this)">杂四布居</code> ·
-            <code onclick="useExample(this)">94141-52780-71</code>
+            <code onclick="useExample(this)">65513-12157-372</code>
         </div>
     </div>
 
@@ -449,11 +449,11 @@
             return deg + "°" + min + "′" + sec + "″ " + hemi;
         }
 
-        // ---------- 十进制 <-> 12 位数字编码（十进制网格交织，5-5-2 分组） ----------
-        // 每位把当前格切成 10 个子格并交替细分：偶数位 经÷5 纬÷2，奇数位 经÷2 纬÷5。
-        // 12 位 ≈ 30m×20m，匹配手机 GPS 精度；保留 Z 序局部性。
-        var DIGITS_LEN = 12;
-        function _digitsGrid(k) { return k % 2 === 0 ? { cols: 5, rows: 2 } : { cols: 2, rows: 5 }; }
+        // ---------- 十进制 <-> 13 位数字编码（网格交织，数字 1-9，5-5-3 分组） ----------
+        // 首位 经÷3 纬÷2（6 格，消化世界 2:1 长宽比），其后 12 位 经÷3 纬÷3（9 格，方格细分）。
+        // 13 位 ≈ 19m×19m，接近手机 GPS 精度；方格细分让 Z 序局部性更均匀。
+        var DIGITS_LEN = 13;
+        function _digitsGrid(k) { return k === 0 ? { cols: 3, rows: 2 } : { cols: 3, rows: 3 }; }
         function encodeDigits(lat, lon) {
             var lonLo = -180, lonHi = 180, latLo = -90, latHi = 90, out = "";
             for (var k = 0; k < DIGITS_LEN; k++) {
@@ -461,18 +461,19 @@
                 var lonStep = (lonHi - lonLo) / g.cols, latStep = (latHi - latLo) / g.rows;
                 var col = Math.min(Math.max(Math.floor((lon - lonLo) / lonStep), 0), g.cols - 1);
                 var row = Math.min(Math.max(Math.floor((lat - latLo) / latStep), 0), g.rows - 1);
-                out += (row * g.cols + col); // 0..9
+                out += (row * g.cols + col + 1); // 1..9（首位 1..6）
                 lonLo = lonLo + col * lonStep; lonHi = lonLo + lonStep;
                 latLo = latLo + row * latStep; latHi = latLo + latStep;
             }
-            return out.match(/.{1,5}/g).join("-"); // 12 位 → 5-5-2
+            return out.match(/.{1,5}/g).join("-"); // 13 位 → 5-5-3
         }
         function decodeDigits(str) {
             var s = str.replace(/\D/g, "");
             var lonLo = -180, lonHi = 180, latLo = -90, latHi = 90;
             for (var k = 0; k < s.length; k++) {
-                var g = _digitsGrid(k), d = parseInt(s[k], 10);
-                var col = d % g.cols, row = Math.floor(d / g.cols);
+                var g = _digitsGrid(k), maxIdx = g.cols * g.rows - 1;
+                var idx = Math.min(Math.max(parseInt(s[k], 10) - 1, 0), maxIdx);
+                var col = idx % g.cols, row = Math.floor(idx / g.cols);
                 var lonStep = (lonHi - lonLo) / g.cols, latStep = (latHi - latLo) / g.rows;
                 lonLo = lonLo + col * lonStep; lonHi = lonLo + lonStep;
                 latLo = latLo + row * latStep; latHi = latLo + latStep;
@@ -803,9 +804,9 @@
                 if (dms) return { fmt: "度分秒", coord: dms };
             }
 
-            // 4) 数字编码：去掉分隔符后正好 12 位数字
+            // 4) 数字编码：去掉分隔符后正好 13 位数字（每位 1-9）
             var digitsOnly = s.replace(/[\s-]/g, "");
-            if (/^\d{12}$/.test(digitsOnly)) {
+            if (/^[1-9]{13}$/.test(digitsOnly)) {
                 return { fmt: "数字编码", coord: decodeDigits(digitsOnly) };
             }
 

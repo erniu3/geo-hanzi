@@ -98,14 +98,6 @@
             display: none;
         }
 
-        .acc-hint {
-            font-size: 13px;
-            color: var(--sk-body-subtext);
-            margin-bottom: 16px;
-            padding: 0 2px;
-            line-height: 1.4;
-        }
-
         button.primary {
             display: block;
             width: 100%;
@@ -402,19 +394,12 @@
     <p class="subtitle">获取当前定位，并转换为多种编码形式</p>
 
     <div class="tabs">
-        <button type="button" class="tab active" data-tab="high" onclick="switchTab('high')">高精度定位</button>
-        <button type="button" class="tab" data-tab="normal" onclick="switchTab('normal')">普通精度定位</button>
+        <button type="button" class="tab active" data-tab="locate" onclick="switchTab('locate')">获取定位</button>
         <button type="button" class="tab" data-tab="manual" onclick="switchTab('manual')">手动输入</button>
     </div>
 
-    <div class="tab-panel" id="panel-high">
-        <div class="acc-hint">高精度定位（GPS/卫星）— 更精准，但室内较慢、更耗电</div>
-        <button class="primary" id="locateBtn-high" onclick="locate('high')">获取高精度定位</button>
-    </div>
-
-    <div class="tab-panel hidden" id="panel-normal">
-        <div class="acc-hint">普通精度定位（Wi-Fi/基站）— 更快省电，精度较低</div>
-        <button class="primary" id="locateBtn-normal" onclick="locate('normal')">获取普通精度定位</button>
+    <div class="tab-panel" id="panel-locate">
+        <button class="primary" id="locateBtn" onclick="locate()">获取当前定位</button>
     </div>
 
     <div class="tab-panel hidden" id="panel-manual">
@@ -948,33 +933,19 @@
             for (var i = 0; i < tabs.length; i++) {
                 tabs[i].classList.toggle("active", tabs[i].getAttribute("data-tab") === tab);
             }
-            var panels = ["high", "normal", "manual"];
+            var panels = ["locate", "manual"];
             for (var j = 0; j < panels.length; j++) {
                 document.getElementById("panel-" + panels[j]).classList.toggle("hidden", panels[j] !== tab);
             }
         }
 
-        // ---------- 定位（按精度模式） ----------
-        var ACC_INFO = {
-            high: {
-                name: "高精度",
-                options: { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-                retry: { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }
-            },
-            normal: {
-                name: "普通精度",
-                options: { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 },
-                retry: { enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 }
-            }
-        };
-
-        function locate(mode) {
-            var btn = document.getElementById("locateBtn-" + mode);
+        // ---------- 定位（每次都高精度 + 全新定位，不用缓存） ----------
+        function locate() {
+            var btn = document.getElementById("locateBtn");
             if (!navigator.geolocation) {
                 setStatus("此设备/浏览器不支持定位", true);
                 return;
             }
-            var info = ACC_INFO[mode];
             clearResults();
             btn.disabled = true;
 
@@ -983,13 +954,12 @@
                 var lon = pos.coords.longitude;
                 var acc = pos.coords.accuracy;
                 render(lat, lon);
-                setStatus("定位成功 · " + info.name + "模式" +
-                    (acc ? "（实测精度约 ±" + Math.round(acc) + " 米）" : ""));
+                setStatus("定位成功" + (acc ? "（实测精度约 ±" + Math.round(acc) + " 米）" : ""));
                 btn.disabled = false;
                 btn.textContent = "重新获取定位";
             }
 
-            // kCLErrorLocationUnknown（code 2）多为临时失败：在同一精度模式下重试一次
+            // kCLErrorLocationUnknown（code 2）多为临时失败：全新高精度重试一次
             function onError(isRetry) {
                 return function (err) {
                     if (err.code === 1) {
@@ -998,8 +968,9 @@
                         return;
                     }
                     if (!isRetry) {
-                        setStatus(info.name + "定位重试中…");
-                        navigator.geolocation.getCurrentPosition(onSuccess, onError(true), info.retry);
+                        setStatus("定位重试中…");
+                        navigator.geolocation.getCurrentPosition(onSuccess, onError(true),
+                            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
                         return;
                     }
                     setStatus("定位失败，请稍后重试", true);
@@ -1008,8 +979,10 @@
                 };
             }
 
-            setStatus("正在以" + info.name + "模式获取定位…");
-            navigator.geolocation.getCurrentPosition(onSuccess, onError(false), info.options);
+            setStatus("正在获取定位…");
+            // maximumAge:0 → 每次都强制重新定位，不复用缓存
+            navigator.geolocation.getCurrentPosition(onSuccess, onError(false),
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         }
 
         // 复制成功提示 toast（底部弹出，显示复制了什么）

@@ -404,7 +404,7 @@
 
     <div class="tab-panel hidden" id="panel-manual">
         <div class="manual-row">
-            <input type="text" id="manualInput" placeholder="十进制 / 度分秒 / Geohash / Plus Codes / 汉字"
+            <input type="text" id="manualInput" placeholder="十进制 / 度分秒 / Geohash / Plus Codes / 汉字 / 数字"
                 onkeydown="if(event.key==='Enter')parseManual()">
             <button type="button" onclick="pasteManual()">粘贴</button>
             <button type="button" onclick="parseManual()">解析</button>
@@ -412,9 +412,10 @@
         <div class="manual-hint">
             示例（点击填入）：<code onclick="useExample(this)">40.0239, 116.4836</code> ·
             <code onclick="useExample(this)">40°1′26″N 116°29′1″E</code> ·
-            <code onclick="useExample(this)">wx4gdwhs</code> ·
+            <code onclick="useExample(this)">wx4gdwhsrd</code> ·
             <code onclick="useExample(this)">8PGR2FFM+HC</code> ·
-            <code onclick="useExample(this)">杂四布居</code>
+            <code onclick="useExample(this)">杂四布居</code> ·
+            <code onclick="useExample(this)">941-415-278-071-242</code>
         </div>
     </div>
 
@@ -426,6 +427,10 @@
         <div class="card">
             <div class="label">汉字编码</div>
             <div class="value hanzi placeholder" id="hanzi">—</div>
+        </div>
+        <div class="card">
+            <div class="label">数字编码</div>
+            <div class="value placeholder" id="digits">—</div>
         </div>
         <div class="card">
             <div class="label">Geohash</div>
@@ -497,6 +502,37 @@
             if (sec === 60) { sec = 0; min += 1; }
             if (min === 60) { min = 0; deg += 1; }
             return deg + "°" + min + "′" + sec + "″ " + hemi;
+        }
+
+        // ---------- 十进制 <-> 15 位数字编码（十进制网格交织，正好铺满 10^15） ----------
+        // 每位把当前格切成 10 个子格并交替细分：偶数位 经÷5 纬÷2，奇数位 经÷2 纬÷5。
+        // 累计经度 5^8·2^7 = 5e7 格、纬度 2^8·5^7 = 2e7 格，乘积 10^15；保留 Z 序局部性。
+        var DIGITS_LEN = 15;
+        function _digitsGrid(k) { return k % 2 === 0 ? { cols: 5, rows: 2 } : { cols: 2, rows: 5 }; }
+        function encodeDigits(lat, lon) {
+            var lonLo = -180, lonHi = 180, latLo = -90, latHi = 90, out = "";
+            for (var k = 0; k < DIGITS_LEN; k++) {
+                var g = _digitsGrid(k);
+                var lonStep = (lonHi - lonLo) / g.cols, latStep = (latHi - latLo) / g.rows;
+                var col = Math.min(Math.max(Math.floor((lon - lonLo) / lonStep), 0), g.cols - 1);
+                var row = Math.min(Math.max(Math.floor((lat - latLo) / latStep), 0), g.rows - 1);
+                out += (row * g.cols + col); // 0..9
+                lonLo = lonLo + col * lonStep; lonHi = lonLo + lonStep;
+                latLo = latLo + row * latStep; latHi = latLo + latStep;
+            }
+            return out.match(/.{3}/g).join("-");
+        }
+        function decodeDigits(str) {
+            var s = str.replace(/\D/g, "");
+            var lonLo = -180, lonHi = 180, latLo = -90, latHi = 90;
+            for (var k = 0; k < s.length; k++) {
+                var g = _digitsGrid(k), d = parseInt(s[k], 10);
+                var col = d % g.cols, row = Math.floor(d / g.cols);
+                var lonStep = (lonHi - lonLo) / g.cols, latStep = (latHi - latLo) / g.rows;
+                lonLo = lonLo + col * lonStep; lonHi = lonLo + lonStep;
+                latLo = latLo + row * latStep; latHi = latLo + latStep;
+            }
+            return [(latLo + latHi) / 2, (lonLo + lonHi) / 2];
         }
 
         // ---------- 十进制 -> geohash（标准 base32） ----------
@@ -822,11 +858,17 @@
                 if (dms) return { fmt: "度分秒", coord: dms };
             }
 
-            // 4) 十进制：两个数字
+            // 4) 数字编码：去掉分隔符后正好 15 位数字
+            var digitsOnly = s.replace(/[\s-]/g, "");
+            if (/^\d{15}$/.test(digitsOnly)) {
+                return { fmt: "数字编码", coord: decodeDigits(digitsOnly) };
+            }
+
+            // 5) 十进制：两个数字
             var dec = parseDecimal(s);
             if (dec) return { fmt: "十进制", coord: dec };
 
-            // 5) Geohash：仅含 base32 字符（无 a/i/l/o）
+            // 6) Geohash：仅含 base32 字符（无 a/i/l/o）
             if (/^[0-9bcdefghjkmnpqrstuvwxyz]+$/i.test(s)) {
                 try { return { fmt: "Geohash", coord: decodeGeohash(s.toLowerCase()) }; } catch (e) { }
             }
@@ -891,7 +933,7 @@
 
         // 清空下方所有结果与跳转链接
         function clearResults() {
-            var ids = ["hanzi", "geohash", "pluscode", "decimal", "dms"];
+            var ids = ["hanzi", "geohash", "pluscode", "digits", "decimal", "dms"];
             for (var i = 0; i < ids.length; i++) {
                 var el = document.getElementById(ids[i]);
                 el.textContent = "—";
@@ -903,13 +945,14 @@
         }
 
         function render(lat, lon) {
-            var geohash = encodeGeohash(lat, lon, 8);
+            var geohash = encodeGeohash(lat, lon, 10);
             var pluscode = encodePlusCode(lat, lon, 10);
             var hanzi = encodeHanzi(lat, lon, 4);
             setValue("decimal", lat.toFixed(4) + ", " + lon.toFixed(4));
             setValue("dms", toDMS(lat, true) + "  " + toDMS(lon, false));
             setValue("geohash", geohash);
             setValue("pluscode", pluscode);
+            setValue("digits", encodeDigits(lat, lon));
             setValue("hanzi", hanzi);
             document.getElementById("results").classList.add("ready");
 

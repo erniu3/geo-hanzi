@@ -17,7 +17,6 @@
             --sk-code-bg: rgba(0, 0, 0, 0.05);
             --sk-btn-bg: #f5f5f7;
             --sk-btn-hover: #e8e8ed;
-            --sk-toast-bg: #ffffff;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -31,7 +30,6 @@
                 --sk-code-bg: rgba(255, 255, 255, 0.1);
                 --sk-btn-bg: rgb(44, 44, 46);
                 --sk-btn-hover: rgb(58, 58, 60);
-                --sk-toast-bg: rgb(44, 44, 46);
             }
         }
 
@@ -135,63 +133,6 @@
             color: #ff453a;
         }
 
-        #toast {
-            position: fixed;
-            left: 50%;
-            bottom: 40px;
-            transform: translateX(-50%) translateY(16px);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            max-width: min(420px, calc(100vw - 40px));
-            background: var(--sk-toast-bg);
-            border: 1px solid var(--sk-card-border);
-            border-radius: 14px;
-            padding: 12px 18px 12px 14px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
-            opacity: 0;
-            pointer-events: none;
-            z-index: 1000;
-            transition: opacity 0.22s ease, transform 0.22s ease;
-        }
-
-        #toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        #toast .toast-icon {
-            flex: 0 0 auto;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            background: #34c759;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 15px;
-            font-weight: 700;
-        }
-
-        #toast .toast-body {
-            min-width: 0;
-        }
-
-        #toast .toast-title {
-            font-size: 12px;
-            color: var(--sk-body-subtext);
-            margin-bottom: 2px;
-        }
-
-        #toast .toast-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--sk-body-text);
-            word-break: break-all;
-            line-height: 1.3;
-        }
-
         .manual-row {
             display: flex;
             gap: 8px;
@@ -267,6 +208,12 @@
             font-size: 13px;
             color: var(--sk-body-subtext);
             margin-bottom: 6px;
+            transition: color 0.15s ease;
+        }
+
+        .card .label.copied {
+            color: #34c759;
+            font-weight: 600;
         }
 
         .card .value {
@@ -412,16 +359,14 @@
         <div class="manual-hint">
             示例（点击填入）：<code onclick="useExample(this)">40.0239, 116.4836</code> ·
             <code onclick="useExample(this)">40°1′26″N 116°29′1″E</code> ·
-            <code onclick="useExample(this)">wx4gdwhsrd</code> ·
+            <code onclick="useExample(this)">wx4gdwhs</code> ·
             <code onclick="useExample(this)">8PGR2FFM+HC</code> ·
             <code onclick="useExample(this)">杂四布居</code> ·
-            <code onclick="useExample(this)">94141-52780-71242</code>
+            <code onclick="useExample(this)">94141-52780-71</code>
         </div>
     </div>
 
     <div class="status" id="status"></div>
-
-    <div id="toast"></div>
 
     <div id="results">
         <div class="card">
@@ -504,10 +449,10 @@
             return deg + "°" + min + "′" + sec + "″ " + hemi;
         }
 
-        // ---------- 十进制 <-> 15 位数字编码（十进制网格交织，正好铺满 10^15） ----------
+        // ---------- 十进制 <-> 12 位数字编码（十进制网格交织，5-5-2 分组） ----------
         // 每位把当前格切成 10 个子格并交替细分：偶数位 经÷5 纬÷2，奇数位 经÷2 纬÷5。
-        // 累计经度 5^8·2^7 = 5e7 格、纬度 2^8·5^7 = 2e7 格，乘积 10^15；保留 Z 序局部性。
-        var DIGITS_LEN = 15;
+        // 12 位 ≈ 30m×20m，匹配手机 GPS 精度；保留 Z 序局部性。
+        var DIGITS_LEN = 12;
         function _digitsGrid(k) { return k % 2 === 0 ? { cols: 5, rows: 2 } : { cols: 2, rows: 5 }; }
         function encodeDigits(lat, lon) {
             var lonLo = -180, lonHi = 180, latLo = -90, latHi = 90, out = "";
@@ -520,7 +465,7 @@
                 lonLo = lonLo + col * lonStep; lonHi = lonLo + lonStep;
                 latLo = latLo + row * latStep; latHi = latLo + latStep;
             }
-            return out.match(/.{5}/g).join("-");
+            return out.match(/.{1,5}/g).join("-"); // 12 位 → 5-5-2
         }
         function decodeDigits(str) {
             var s = str.replace(/\D/g, "");
@@ -858,9 +803,9 @@
                 if (dms) return { fmt: "度分秒", coord: dms };
             }
 
-            // 4) 数字编码：去掉分隔符后正好 15 位数字
+            // 4) 数字编码：去掉分隔符后正好 12 位数字
             var digitsOnly = s.replace(/[\s-]/g, "");
-            if (/^\d{15}$/.test(digitsOnly)) {
+            if (/^\d{12}$/.test(digitsOnly)) {
                 return { fmt: "数字编码", coord: decodeDigits(digitsOnly) };
             }
 
@@ -945,7 +890,7 @@
         }
 
         function render(lat, lon) {
-            var geohash = encodeGeohash(lat, lon, 10);
+            var geohash = encodeGeohash(lat, lon, 8);
             var pluscode = encodePlusCode(lat, lon, 10);
             var hanzi = encodeHanzi(lat, lon, 4);
             setValue("decimal", lat.toFixed(4) + ", " + lon.toFixed(4));
@@ -1028,17 +973,17 @@
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         }
 
-        // 复制成功提示 toast（底部弹出，显示复制了什么）
-        var _toastTimer = null;
-        function showToast(label, value) {
-            var t = document.getElementById("toast");
-            t.innerHTML = '<span class="toast-icon">✓</span>' +
-                '<div class="toast-body"><div class="toast-title"></div><div class="toast-value"></div></div>';
-            t.querySelector(".toast-title").textContent = "已复制 · " + label;
-            t.querySelector(".toast-value").textContent = value;
-            t.classList.add("show");
-            if (_toastTimer) clearTimeout(_toastTimer);
-            _toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2000);
+        // 复制成功后，在该卡片的标题上就地闪现「已复制 ✅」
+        function flashCopied(card) {
+            var label = card.querySelector(".label");
+            if (!("orig" in label.dataset)) label.dataset.orig = label.textContent;
+            label.textContent = "已复制 ✅";
+            label.classList.add("copied");
+            clearTimeout(label._t);
+            label._t = setTimeout(function () {
+                label.textContent = label.dataset.orig;
+                label.classList.remove("copied");
+            }, 1200);
         }
 
         // 点击复制
@@ -1047,10 +992,9 @@
             if (!el || el.classList.contains("placeholder")) return;
             var text = el.textContent.trim();
             var card = el.closest(".card");
-            var label = card ? card.querySelector(".label").textContent.trim() : "坐标";
-            if (navigator.clipboard) {
+            if (navigator.clipboard && card) {
                 navigator.clipboard.writeText(text).then(function () {
-                    showToast(label, text);
+                    flashCopied(card);
                 });
             }
         });

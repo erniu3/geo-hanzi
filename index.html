@@ -579,14 +579,14 @@
                 if (i < bitsLon) bits += lonBits[i];
                 if (i < bitsLat) bits += latBits[i];
             }
-            // 40 bit 在 Number 安全整数范围内（< 2^53），用 BigInt 更稳妥
-            var value = BigInt("0b" + bits);
-            var base = BigInt(HANZI_BASE);
+            // 40 bit < 2^53，普通 Number 即可（不用 BigInt，兼容老 Safari）
+            var value = parseInt(bits, 2);
+            var base = HANZI_BASE;
             var digits = [];
             for (var j = 0; j < numChars; j++) {
                 var rem = value % base;
-                value = value / base;
-                digits.push(HANZI[Number(rem)]);
+                value = Math.floor(value / base);
+                digits.push(HANZI[rem]);
             }
             digits.reverse();
             return digits.join("");
@@ -628,9 +628,9 @@
             var totalBits = bitsForChars(code.length);
             var bitsLon = Math.ceil(totalBits / 2);
             var bitsLat = Math.floor(totalBits / 2);
-            var value = 0n, base = BigInt(HANZI_BASE);
+            var value = 0, base = HANZI_BASE;
             for (var i = 0; i < code.length; i++) {
-                value = value * base + BigInt(HANZI.indexOf(code[i]));
+                value = value * base + HANZI.indexOf(code[i]);
             }
             var bits = value.toString(2).padStart(totalBits, "0");
             var lonBits = "", latBits = "", pos = 0;

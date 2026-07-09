@@ -1,6 +1,6 @@
 // Geohanzi Service Worker —— 缓存外壳，实现离线可用
 // 每次改动静态资源时，把 CACHE 版本号 +1，旧缓存会在 activate 时清除。
-var CACHE = "geohanzi-v1";
+var CACHE = "geohanzi-v2";
 
 // 需要预缓存的外壳文件（相对 SW 所在目录）。
 var ASSETS = [

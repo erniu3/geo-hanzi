@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a8dde"/>
+      <stop offset="1" stop-color="#0a4da2"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eaf2ff"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <path d="M256 108
+           c-79 0 -143 62 -143 139
+           c0 62 44 108 118 195
+           c13 15 37 15 50 0
+           c74 -87 118 -133 118 -195
+           c0 -77 -64 -139 -143 -139 z"
+        fill="url(#pin)"/>
+
+  <!-- 牛字 -->
+  <path d="M437 855V694H301C313 731 324 769 333 808L181 837C152 698 93 559 14 479C52 463 124 428 155 406C186 445 216 495 243 551H437V372H40V228H437V-95H592V228H963V372H592V551H904V694H592V855Z" transform="translate(256 247) scale(0.155 -0.155) translate(-488.5 -380)" fill="#0a4da2"/>
+</svg>

@@ -8,6 +8,16 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- iOS Safari 专用：全屏 standalone + 状态栏样式 + 主屏名称 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Geohanzi">
     <style>
         :root {
             color-scheme: light dark;
@@ -1002,6 +1012,13 @@
                 });
             }
         });
+
+        // 注册 Service Worker（离线可用 + 可安装）
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("sw.js").catch(function () { });
+            });
+        }
     </script>
 </body>
 
